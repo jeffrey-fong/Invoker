@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import List, Dict, Any
 
 import torch
-from transformers import StoppingCriteria, StoppingCriteriaList, AutoModelForCausalLM, AutoTokenizer
+from transformers import StoppingCriteria, StoppingCriteriaList, LlamaForCausalLM, LlamaTokenizer
 
 
 class StopWordsCriteria(StoppingCriteria):
@@ -28,9 +28,9 @@ class InvokerPipeline:
     _pipeline = None
 
     def __init__(self, model_path: str):
-        self._tokenizer = AutoTokenizer.from_pretrained(model_path)
+        self._tokenizer = LlamaTokenizer.from_pretrained(model_path, use_fast=False)
         # Load model
-        self._model = AutoModelForCausalLM.from_pretrained(
+        self._model = LlamaForCausalLM.from_pretrained(
             model_path, torch_dtype=torch.float16, device_map="auto"
         )
 

@@ -18,5 +18,6 @@ async def get_pipeline(model_path: str):
 @app.post('/chat', response_model=ChatOutput)
 def chat(req: ChatInput, invoker_pipeline: InvokerPipeline = Depends(get_pipeline)):
     id = str(uuid.uuid4())
+    # output = invoker_pipeline.generate(input_text=req.)
     message = {"role": "assistant", "content": "Endpoint called"}
     return {"id": id, "choices": [{"message": message, "finish_reason": "stop"}]}
