@@ -67,36 +67,35 @@ class InvokerPipeline:
                     data_type_json_schema = dict(
                         type=arg_info["type"], item=arg_info["items"]["type"] if "items" in arg_info else None
                     )
-                    if arg_name in function.parameters["required"]:
+                    if arg_name not in function.parameters["required"]:
                         prompt += f"Optional[{convert_json_schema_to_py(json_schema=data_type_json_schema)}],"
                     else:
                         prompt += f"{convert_json_schema_to_py(json_schema=data_type_json_schema)},"
                 prompt += "\n) -> Any:\n```"
         else:
             prompt += "\nNone"
-        breakpoint()
+        prompt += (
+            "\n\nA chat between a curious user and an artificial intelligence assistant. "
+            "The assistant gives helpful, detailed, and polite answers to the user's questions. "
+            "The assistant calls functions with appropriate input when necessary."
+        )
+        for message in messages:
+            if message.role == "assistant":
+                prompt += f"\n{message.role.upper()}: ```" + "{"
+                if message.content is None:
+                    prompt += "\"content\": null, \"function_call\": {" + f"\"name\": \"{message.function_call.name}\", \"arguments\": {message.function_call.arguments}" + "}```"
+                else:
+                    prompt += f"\"content\": {message.content}" + ", \"function_call\": None}```"
+            elif message.role == "function":
+                prompt += f"\n{message.role.upper()}: ```" + "{" + f"\"name\": \"{message.name}\", \"content\": {message.content}" + "}```"
+            else:
+                prompt += f"\n{message.role.upper()}: {message.content}"
+        prompt += "\nASSISTANT:"
+        return prompt
 
     async def generate(
         self, input_text: str, params: List[Dict[str, Any]]
     ) -> str:
-        input_text = f"""Available Function Headers:
-```python
-# Plan a trip based on user's interests
-def plan_trip(
-	# The destination of the trip
-	destination: str,
-	# The duration of the trip in days
-	duration: int,
-    # The interests based on which the trip will be planned
-    interests: List[str]
-) -> Any:
-```
-
-A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. The assistant calls functions with appropriate input when necessary. 
-
-USER: I want to check the weather.
-ASSISTANT:"""
-# I want to plan a 7-day trip to Paris with a focus on art and culture
         # Tokenize the input
         input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
         # Run the model to infer an output
