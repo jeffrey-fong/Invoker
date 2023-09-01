@@ -11,6 +11,7 @@ class FunctionCall(BaseModel):
 class Parameters(BaseModel):
     type: str = "object"
     properties: dict
+    required: list
 
 
 class Message(BaseModel):

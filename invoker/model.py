@@ -62,12 +62,12 @@ class InvokerPipeline:
         if functions is not None:
             for function in functions:
                 prompt += f"\n```python\n# {function.description}\ndef {function.name}("
-                for arg_name, arg_info in function.parameters["properties"].items():
+                for arg_name, arg_info in function.parameters.properties.items():
                     prompt += f"\n    # {arg_info['description']}\n    {arg_name}: "
                     data_type_json_schema = dict(
                         type=arg_info["type"], item=arg_info["items"]["type"] if "items" in arg_info else None
                     )
-                    if arg_name not in function.parameters["required"]:
+                    if arg_name not in function.parameters.required:
                         prompt += f"Optional[{convert_json_schema_to_py(json_schema=data_type_json_schema)}],"
                     else:
                         prompt += f"{convert_json_schema_to_py(json_schema=data_type_json_schema)},"
