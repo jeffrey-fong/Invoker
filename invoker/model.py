@@ -37,7 +37,7 @@ class InvokerPipeline:
     async def generate(
         self, input_text: str, params: List[Dict[str, Any]]
     ) -> str:
-        prompt = f"""Available Function Headers:
+        input_text = f"""Available Function Headers:
 ```python
 # Plan a trip based on user's interests
 def plan_trip(
@@ -55,13 +55,26 @@ A chat between a curious user and an artificial intelligence assistant. The assi
 USER: I want to plan a 7-day trip to Paris with a focus on art and culture
 ASSISTANT:"""
         # Tokenize the input
-        input_ids = self._tokenizer(prompt, return_tensors="pt").input_ids.cuda()
+        input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
         # Run the model to infer an output
-        stop_words_ids = [self._tokenizer.encode(stop_word, add_special_tokens=False) for stop_word in ["\nUSER:", "\nASSISTANT:", "\nFUNCTION:"]]
+        stop_words_ids = [self._tokenizer.encode(stop_word, add_special_tokens=False) for stop_word in ["\n\nUSER:", "\n\nASSISTANT:", "\n\nFUNCTION:"]]
         stopping_criteria = StoppingCriteriaList([StopWordsCriteria(stops=stop_words_ids)])
-        output_ids = self._model.generate(input_ids=input_ids, max_new_tokens=512, do_sample=True, top_p=0.9,temperature=0.001, stopping_criteria=stopping_criteria)
-        output = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        # do_sample = True if 
+        output_ids = self._model.generate(
+            input_ids=input_ids, max_new_tokens=512, do_sample=True, top_p=0.9,temperature=0.001, stopping_criteria=stopping_criteria
+        )
+        raw_output = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        output = raw_output[len(input_text):]
+        # Remove the stop_words
+        for stop_word in ["\n\nUSER:", "\n\nASSISTANT:", "\n\nFUNCTION:"]:
+            if output.endswith(stop_word):
+                output = output[:-len(stop_word)]
+                break
+        output = self._postprocess(text=output)
         return output
+    
+    async def _postprocess(self, text):
+        return text
 
     @classmethod
     async def maybe_init(cls, model_path: str) -> InvokerPipeline:
