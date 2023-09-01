@@ -86,17 +86,16 @@ ASSISTANT:"""
                         "function_call": {
                             "name": output_json["function_call"]["name"], 
                             "arguments": output_json["function_call"]["arguments"] if isinstance(output_json["function_call"]["arguments"], str) else json.dumps(output_json["function_call"]["arguments"])
-                        }, 
-                        "finish_reason": "function_call"
-                    }
+                        }
+                    },
+                    "finish_reason": "function_call"
                 }
             ]
         else:
             choices = [
                 {
-                    "message": {
-                        "role": "assistant", "content": output_json["content"], "finish_reason": "stop"
-                    }
+                    "message": {"role": "assistant", "content": output_json["content"]},
+                    "finish_reason": "stop"
                 }
             ]
         return choices
