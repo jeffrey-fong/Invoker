@@ -1,10 +1,12 @@
 from __future__ import annotations
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import json
 import re
 
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList, LlamaForCausalLM, LlamaTokenizer
+
+from invoker.api_types import Message, Function
 
 
 class StopWordsCriteria(StoppingCriteria):
@@ -35,6 +37,9 @@ class InvokerPipeline:
         self._model = LlamaForCausalLM.from_pretrained(
             model_path, torch_dtype=torch.float16, device_map="auto"
         )
+        
+    async def format_message(messages: List[Message], functions: Optional[List[Function]]):
+        breakpoint()
 
     async def generate(
         self, input_text: str, params: List[Dict[str, Any]]
@@ -54,8 +59,9 @@ def plan_trip(
 
 A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions. The assistant calls functions with appropriate input when necessary. 
 
-USER: I want to plan a 7-day trip to Paris with a focus on art and culture
+USER: I want to check the weather.
 ASSISTANT:"""
+# I want to plan a 7-day trip to Paris with a focus on art and culture
         # Tokenize the input
         input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
         # Run the model to infer an output

@@ -10,7 +10,7 @@ class FunctionCall(BaseModel):
 
 class Message(BaseModel):
     role: str
-    content: str
+    content: Optional[str]
     name: Optional[str] = None
     function_call: Optional[FunctionCall] = None
 
