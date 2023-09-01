@@ -9,6 +9,17 @@ from transformers import StoppingCriteria, StoppingCriteriaList, LlamaForCausalL
 from invoker.api_types import Message, Function
 
 
+JSON_TO_PY_MAPPING = {
+    "string": "str", 
+    "integer": "int", 
+    "boolean": "bool", 
+    "array": "List", 
+    "number": "float", 
+    "object": "Dict", 
+    "null": None
+}
+
+
 class StopWordsCriteria(StoppingCriteria):
     def __init__(self, stops=[]):
         StoppingCriteria.__init__(self)
@@ -25,6 +36,14 @@ class StopWordsCriteria(StoppingCriteria):
             if len(inputs) >= len(stop) and inputs[-len(stop) :] == stop:
                 return True
         return False
+    
+    
+def convert_json_schema_to_py(json_schema: Dict[str, str]):
+    if json_schema["type"] == "array":
+        type_hint = f"{JSON_TO_PY_MAPPING['array']}[{JSON_TO_PY_MAPPING[json_schema['item']]}]"
+    else:
+        type_hint = JSON_TO_PY_MAPPING[json_schema["type"]]
+    return type_hint
 
 
 class InvokerPipeline:
@@ -38,7 +57,23 @@ class InvokerPipeline:
             model_path, torch_dtype=torch.float16, device_map="auto"
         )
         
-    async def format_message(messages: List[Message], functions: Optional[List[Function]]):
+    async def format_message(self, messages: List[Message], functions: Optional[List[Function]]):
+        prompt = "Available Function Headers:"
+        if functions is not None:
+            for function in functions:
+                prompt += f"\n```python\n# {function.description}\ndef {function.name}("
+                for arg_name, arg_info in function.parameters["properties"].items():
+                    prompt += f"\n    # {arg_info['description']}\n    {arg_name}: "
+                    data_type_json_schema = dict(
+                        type=arg_info["type"], item=arg_info["items"]["type"] if "items" in arg_info else None
+                    )
+                    if arg_name in function.parameters["required"]:
+                        prompt += f"Optional[{convert_json_schema_to_py(json_schema=data_type_json_schema)}],"
+                    else:
+                        prompt += f"{convert_json_schema_to_py(json_schema=data_type_json_schema)},"
+                prompt += "\n) -> Any:\n```"
+        else:
+            prompt += "\nNone"
         breakpoint()
 
     async def generate(

@@ -25,8 +25,7 @@ async def get_pipeline(model_path: str):
 @app.post('/chat', response_model=ChatOutput)
 async def chat(req: ChatInput, invoker_pipeline: InvokerPipeline = Depends(get_pipeline)):
     id = str(uuid.uuid4())
-    breakpoint()
-    prompt = await invoker_pipeline.format_message()
+    prompt = await invoker_pipeline.format_message(messages=req.messages, functions=req.functions)
     choices = await invoker_pipeline.generate(input_text=prompt, params=[])
     return {"id": id, "choices": choices}
 
