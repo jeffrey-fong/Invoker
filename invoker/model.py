@@ -1,5 +1,7 @@
 from __future__ import annotations
 from typing import List, Dict, Any
+import json
+import re
 
 import torch
 from transformers import StoppingCriteria, StoppingCriteriaList, LlamaForCausalLM, LlamaTokenizer
@@ -70,11 +72,34 @@ ASSISTANT:"""
             if output.endswith(stop_word):
                 output = output[:-len(stop_word)]
                 break
-        output = self._postprocess(text=output)
-        return output
+        choices = await self._postprocess(text=output)
+        return choices
     
     async def _postprocess(self, text):
-        return text
+        output_json = json.loads(re.search(r"```(.*?)```?", text, re.DOTALL).group(1))
+        if output_json["function_call"] is not None:
+            choices = [
+                {
+                    "message": {
+                        "role": "assistant", 
+                        "content": None,
+                        "function_call": {
+                            "name": output_json["function_call"]["name"], 
+                            "arguments": output_json["function_call"]["arguments"] if isinstance(output_json["function_call"]["arguments"], str) else json.dumps(output_json["function_call"]["arguments"])
+                        }, 
+                        "finish_reason": "function_call"
+                    }
+                }
+            ]
+        else:
+            choices = [
+                {
+                    "message": {
+                        "role": "assistant", "content": output_json["content"], "finish_reason": "stop"
+                    }
+                }
+            ]
+        return choices
 
     @classmethod
     async def maybe_init(cls, model_path: str) -> InvokerPipeline:
