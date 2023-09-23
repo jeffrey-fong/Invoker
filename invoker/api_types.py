@@ -36,4 +36,6 @@ class Choice(BaseModel):
 
 class ChatOutput(BaseModel):
     id: str
+    object: str = "chat.completion"
+    created: int
     choices: List[Choice]
