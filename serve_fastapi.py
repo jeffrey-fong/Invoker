@@ -5,7 +5,7 @@ import time
 
 from pydantic_settings import BaseSettings
 from pydantic import Field
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -26,13 +26,14 @@ settings = Settings()
 
 
 @app.post('/chat/completions', response_model=ChatOutput)
-def chat(req: ChatInput):
-    breakpoint()
-    invoker_pipeline: InvokerPipeline = Depends(get_pipeline(model_path=settings.invoker_model_name_or_path))
+async def chat(req: ChatInput):
     id = str(uuid.uuid4())
+    invoker_pipeline: InvokerPipeline = await get_pipeline(model_path=settings.invoker_model_name_or_path)
+    prompt = invoker_pipeline.format_message(messages=req.messages, functions=req.functions)
+    output = invoker_pipeline.generate(input_text=prompt, params=[{"temperature": req.temperature, "top_p": req.top_p}])
     message = {"role": "assistant", "content": "Endpoint called"}
     created = int(time.time())
-    return {"id": id}
+    return {"id": id, "created": created, "choices": [{"message": message, "finish_reason": "stop"}]}
     # return {"id": id, "object": "chat.completion", "created": created, "choices": [{"message": message, "finish_reason": "stop"}]}
     
 

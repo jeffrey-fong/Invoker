@@ -57,21 +57,11 @@ class InvokerPipeline:
             model_path, torch_dtype=torch.float16, device_map="auto"
         )
         
-    async def format_message(self, messages: List[Message], functions: Optional[List[Function]]):
-        prompt = "Available Function Headers:"
+    def format_message(self, messages: List[Message], functions: Optional[List[Function]]):
+        prompt = "Available Functions:"
         if functions is not None:
             for function in functions:
-                prompt += f"\n```python\n# {function.description}\ndef {function.name}("
-                for arg_name, arg_info in function.parameters.properties.items():
-                    prompt += f"\n    # {arg_info['description']}\n    {arg_name}: "
-                    data_type_json_schema = dict(
-                        type=arg_info["type"], item=arg_info["items"]["type"] if "items" in arg_info else None
-                    )
-                    if arg_name not in function.parameters.required:
-                        prompt += f"Optional[{convert_json_schema_to_py(json_schema=data_type_json_schema)}],"
-                    else:
-                        prompt += f"{convert_json_schema_to_py(json_schema=data_type_json_schema)},"
-                prompt += "\n) -> Any:\n```"
+                prompt += f"\n```json\n{json.dumps(function.model_dump(mode='json'))}\n```"
         else:
             prompt += "\nNone"
         prompt += (
@@ -93,7 +83,7 @@ class InvokerPipeline:
         prompt += "\nASSISTANT:"
         return prompt
 
-    async def generate(
+    def generate(
         self, input_text: str, params: List[Dict[str, Any]]
     ) -> str:
         # Tokenize the input
@@ -103,8 +93,9 @@ class InvokerPipeline:
         stopping_criteria = StoppingCriteriaList([StopWordsCriteria(stops=stop_words_ids)])
         # do_sample = True if 
         output_ids = self._model.generate(
-            input_ids=input_ids, max_new_tokens=512, do_sample=True, top_p=0.9,temperature=0.001, stopping_criteria=stopping_criteria
+            input_ids=input_ids, max_new_tokens=512, do_sample=True, top_p=0.9, temperature=0.001
         )
+        breakpoint
         raw_output = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
         output = raw_output[len(input_text):]
         # Remove the stop_words
@@ -112,10 +103,10 @@ class InvokerPipeline:
             if output.endswith(stop_word):
                 output = output[:-len(stop_word)]
                 break
-        choices = await self._postprocess(text=output)
+        choices = self._postprocess(text=output)
         return choices
     
-    async def _postprocess(self, text):
+    def _postprocess(self, text):
         output_json = json.loads(re.search(r"```(.*?)```?", text, re.DOTALL).group(1))
         if output_json["function_call"] is not None:
             choices = [
