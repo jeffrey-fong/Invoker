@@ -84,25 +84,18 @@ class InvokerPipeline:
         return prompt
 
     def generate(
-        self, input_text: str, params: List[Dict[str, Any]]
+        self, input_text: str, params: Dict[str, Any]
     ) -> str:
         # Tokenize the input
         input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
         # Run the model to infer an output
-        stop_words_ids = [self._tokenizer.encode(stop_word, add_special_tokens=False) for stop_word in ["\n\nUSER:", "\n\nASSISTANT:", "\n\nFUNCTION:"]]
-        stopping_criteria = StoppingCriteriaList([StopWordsCriteria(stops=stop_words_ids)])
-        # do_sample = True if 
+        temperature, top_p = params.get("temperature"), params.get("top_p")
+        do_sample = True if temperature > 0.0 else False
         output_ids = self._model.generate(
-            input_ids=input_ids, max_new_tokens=512, do_sample=True, top_p=0.9, temperature=0.001, stopping_criteria=stopping_criteria
+            input_ids=input_ids, max_new_tokens=512, do_sample=do_sample, top_p=top_p, temperature=temperature
         )
-        breakpoint
         raw_output = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
         output = raw_output[len(input_text):]
-        # Remove the stop_words
-        for stop_word in ["\n\nUSER:", "\n\nASSISTANT:", "\n\nFUNCTION:"]:
-            if output.endswith(stop_word):
-                output = output[:-len(stop_word)]
-                break
         choices = self._postprocess(text=output)
         return choices
     

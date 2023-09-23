@@ -30,11 +30,9 @@ async def chat(req: ChatInput):
     id = str(uuid.uuid4())
     invoker_pipeline: InvokerPipeline = await get_pipeline(model_path=settings.invoker_model_name_or_path)
     prompt = invoker_pipeline.format_message(messages=req.messages, functions=req.functions)
-    output = invoker_pipeline.generate(input_text=prompt, params=[{"temperature": req.temperature, "top_p": req.top_p}])
-    message = {"role": "assistant", "content": "Endpoint called"}
+    choices = invoker_pipeline.generate(input_text=prompt, params={"temperature": req.temperature, "top_p": req.top_p})
     created = int(time.time())
-    return {"id": id, "created": created, "choices": [{"message": message, "finish_reason": "stop"}]}
-    # return {"id": id, "object": "chat.completion", "created": created, "choices": [{"message": message, "finish_reason": "stop"}]}
+    return {"id": id, "created": created, "choices": choices}
     
 
 @app.on_event("startup")
