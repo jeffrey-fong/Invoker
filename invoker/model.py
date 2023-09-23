@@ -4,46 +4,9 @@ import json
 import re
 
 import torch
-from transformers import StoppingCriteria, StoppingCriteriaList, LlamaForCausalLM, LlamaTokenizer
+from transformers import LlamaForCausalLM, LlamaTokenizer
 
 from invoker.api_types import Message, Function
-
-
-JSON_TO_PY_MAPPING = {
-    "string": "str", 
-    "integer": "int", 
-    "boolean": "bool", 
-    "array": "List", 
-    "number": "float", 
-    "object": "Dict", 
-    "null": None
-}
-
-
-class StopWordsCriteria(StoppingCriteria):
-    def __init__(self, stops=[]):
-        StoppingCriteria.__init__(self)
-        self.stops = stops
-        # Check if stop word starts with "\" and remove first token (empty space)
-        # This is only applicable to vicuna-13b and Nous-Hermes-13b tokenizers
-        for i in range(len(self.stops)):
-            if self.stops[i][0] == 29871:
-                self.stops[i] = self.stops[i][1:]
-
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
-        inputs = input_ids[0].tolist()
-        for stop in self.stops:
-            if len(inputs) >= len(stop) and inputs[-len(stop) :] == stop:
-                return True
-        return False
-    
-    
-def convert_json_schema_to_py(json_schema: Dict[str, str]):
-    if json_schema["type"] == "array":
-        type_hint = f"{JSON_TO_PY_MAPPING['array']}[{JSON_TO_PY_MAPPING[json_schema['item']]}]"
-    else:
-        type_hint = JSON_TO_PY_MAPPING[json_schema["type"]]
-    return type_hint
 
 
 class InvokerPipeline:
