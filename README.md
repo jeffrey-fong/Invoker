@@ -26,7 +26,7 @@ If this work is helpful, please kindly cite as:
 @Misc{invoker-function-calling,
   title = {Invoker: The one who calls upon functions - Function-Calling Language Model},
   author = {jeffrey-fong},
-  howpublished = {\url{https://github.com/hiyouga/LLaMA-Efficient-Tuning}},
+  howpublished = {\url{https://github.com/jeffrey-fong/Invoker}},
   year = {2023}
 }
 ```
