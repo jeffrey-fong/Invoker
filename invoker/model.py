@@ -93,7 +93,7 @@ class InvokerPipeline:
         stopping_criteria = StoppingCriteriaList([StopWordsCriteria(stops=stop_words_ids)])
         # do_sample = True if 
         output_ids = self._model.generate(
-            input_ids=input_ids, max_new_tokens=512, do_sample=True, top_p=0.9, temperature=0.001
+            input_ids=input_ids, max_new_tokens=512, do_sample=True, top_p=0.9, temperature=0.001, stopping_criteria=stopping_criteria
         )
         breakpoint
         raw_output = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
