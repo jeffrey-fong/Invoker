@@ -6,11 +6,17 @@ from pydantic import BaseModel
 class FunctionCall(BaseModel):
     name: str
     arguments: str
+    
+    
+class Parameters(BaseModel):
+    type: str = "object"
+    properties: dict
+    required: list
 
 
 class Message(BaseModel):
     role: str
-    content: str
+    content: Optional[str]
     name: Optional[str] = None
     function_call: Optional[FunctionCall] = None
 
@@ -18,7 +24,7 @@ class Message(BaseModel):
 class Function(BaseModel):
     name: str
     description: str
-    parameters: dict
+    parameters: Parameters
 
 
 class ChatInput(BaseModel):
