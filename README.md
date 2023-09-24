@@ -1,6 +1,10 @@
 # Invoker
 
-***The one who calls upon... Functions!***
+<p align="center">
+  <img width="300" height="300" src="invoker.png">
+</p>
+
+***<p style="text-align: center;">The one who calls upon... Functions!</p>***
 
 Invoker is a suite of large language models based on Llama-2 and is finetuned to plan between calling functions and providing responses directly.
 
