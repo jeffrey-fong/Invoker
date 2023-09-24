@@ -96,6 +96,8 @@ if response_message.get("function_call"):
   print(second_response["choices"][0]["message"])
 ```
 
+#### Using the model directly
+Please refer to the model card in HuggingFace to see how to use the model directly.
 
 #### Model Download
 | Model  |  Link | Version |
@@ -106,6 +108,43 @@ if response_message.get("function_call"):
 | Invoker-34B  | Coming Soon |v1.0|
 
 ## Training
+
+Training was performed using QLora which significantly reduces the computational resources required to train the models. Similar to [FastChat](https://github.com/lm-sys/FastChat), we only consider the gradients for the assistant responses when computing the loss for backpropagation and ignore all other outputs and responses.
+
+We accelerated training with DeepSpeed Zero Stage 2 for fast data parallelism. QLora is currently not compatible with DeepSpeed Zero Stage 3 which shards the model into multiple GPUs.
+
+Training code will released in the future.
+
+#### Training hyperparameters
+| Hyperparameter  |  Value |
+| ------------- | ------------- |
+| Total batch size | 192 |
+| Epochs | 2 |
+| Learning rate  | 2e-05 |
+| Lora r  | 64 |
+| Lora alpha  | 16 |
+| Lora dropout  | 0.05 |
+| Weight decay  | 0.0 |
+| Warmup ratio  | 0.03 |
+
+#### Training Data
+
+We use a variety of sources when building our training dataset. All the datasets are carefully chosen to improve both the conversational and function-calling capability of the model.
+
+- [ToolBench](https://github.com/OpenBMB/ToolBench) (0830 updated)
+ToolBench is an open-source, large-scale and high quality instruction tuning SFT dataset to facilitate the training of LLMs with general tool-use capability. It consists of multi-turn conversations where the assistant, who is presented with several potential functions to call, will call one or multiple functions before returning its response to the user. We had undergone rigorous cleaning of the data where we
+
+  1. Removed all datapoints that do not end with the assistant returning a summarized response
+  2. Cleaned datapoints with unnecessary calls to the same function
+  3. Changed all function names and descriptions to not include the domain name, so the functions feels more generic
+
+- [ShareGPT-34K](https://huggingface.co/datasets/ehartford/wizard_vicuna_70k_unfiltered)
+ShareGPT-34K is a filtered dataset containing high quality multi-turn conversations between a user and an assistant. Some of the assistant responses are generated from OpenAI's GPT-3.5-Turbo while some are from GPT-4.
+
+- [OASST1](https://huggingface.co/datasets/HuggingFaceH4/oasst1_en)
+OASST1 is a human-generated and human-annotated assistant-style conversation corpus. We filtered out the conversations in English.
+
+All the datasets used are under Apache-2.0 License. Therefore, this dataset will also be under the same license.
 
 ## To-Dos
 
