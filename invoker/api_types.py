@@ -6,8 +6,8 @@ from pydantic import BaseModel
 class FunctionCall(BaseModel):
     name: str
     arguments: str
-    
-    
+
+
 class Parameters(BaseModel):
     type: str = "object"
     properties: dict
@@ -33,7 +33,7 @@ class ChatInput(BaseModel):
     functions: Optional[List[Function]] = None
     temperature: float = 0.7
     top_p: float = 1.0
-    
+
 
 class Choice(BaseModel):
     message: Message

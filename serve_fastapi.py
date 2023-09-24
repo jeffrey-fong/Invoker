@@ -1,10 +1,6 @@
-from typing import List, Dict
-from typing_extensions import Annotated
-import uuid
 import time
+import uuid
 
-from pydantic_settings import BaseSettings
-from pydantic import Field
 from fastapi import FastAPI
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -25,7 +21,7 @@ app = FastAPI(title="Invoker")
 settings = Settings()
 
 
-@app.post('/chat/completions', response_model=ChatOutput)
+@app.post("/chat/completions", response_model=ChatOutput)
 async def chat(req: ChatInput):
     id = str(uuid.uuid4())
     invoker_pipeline: InvokerPipeline = await get_pipeline(model_path=settings.invoker_model_name_or_path)
@@ -33,7 +29,7 @@ async def chat(req: ChatInput):
     choices = invoker_pipeline.generate(input_text=prompt, params={"temperature": req.temperature, "top_p": req.top_p})
     created = int(time.time())
     return {"id": id, "created": created, "choices": choices}
-    
+
 
 @app.on_event("startup")
 async def startup():
