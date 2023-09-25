@@ -23,7 +23,7 @@ pip install -r requirements.txt
 Kick-start the FastAPI server. You can indicate the model via environment variables. The list of models are indicated [here](#download).
 
 ```shell
-EXPORT INVOKER_MODEL_NAME_OR_PATH=jeffrey-fong/Invoker-13b
+EXPORT INVOKER_MODEL_NAME_OR_PATH=jeffrey-fong/invoker-13b
 uvicorn server_api:app
 ```
 
@@ -97,7 +97,7 @@ if response_message.get("function_call"):
 ```
 
 #### Using the model directly
-Please refer to the model card in HuggingFace to see how to use the model directly.
+Please refer to the model card in HuggingFace to see how to use the model directly, including the prompt format, etc.
 
 #### Model Download
 | Model  |  Link | Version |
@@ -151,6 +151,9 @@ All the datasets used are under Apache-2.0 License. Therefore, this dataset will
 - [ ] Work on validating function names, descriptions, etc. Just like OpenAI's function calling
 - [ ] Quantize 13B model
 - [ ] Work on GPTQ-based servers ([ExLlama](https://github.com/turboderp/exllama) and/or [ExLlamaV2](https://github.com/turboderp/exllamav2))
+- [ ] Converting Invoker to other formats like:
+  - [ ] GGUF
+  - [ ] AWQ
 - [ ] Train 7B Llama-2 model and 34B CodeLlama model
 - [ ] Investigate ways to evaluate function calling
 
