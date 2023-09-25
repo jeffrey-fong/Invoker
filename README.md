@@ -42,27 +42,30 @@ import openai
 openai.api_base = "http://localhost:8000"
 openai.api_key = "test"
 
+messages = [{"role": "user", "content": "Can you check what is the time in Singapore?"}]
 response = openai.ChatCompletion.create(
     model="jeffrey-fong/invoker-13b",
-    messages=[{"role": "user", "content": "What time is it in Singapore?"}],
-    functions=[{
-        "name": "get_time",
-        "description": "Get the current time",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "location": {
+    messages=messages,
+    functions=[
+        {
+            "name": "get_time",
+            "description": "Get the current time",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "location": {
+                        "type": "string",
+                        "description": "The city and state, e.g. New York City, NY"
+                    },
+                    "format": {
                     "type": "string",
-                    "description": "The city and state, e.g. New York City, NY"
+                    "enum": ["12-hour", "24-hour"]
+                    }
                 },
-                "format": {
-                  "type": "string",
-                  "enum": ["12-hour", "24-hour"]
-                }
-            },
-            "required": ["location"],
-        },
-    }]
+                "required": ["location"]
+            }
+        }
+    ]
 )
 response_message = response["choices"][0]["message"]
 ```
@@ -95,6 +98,8 @@ if response_message.get("function_call"):
   )
   print(second_response["choices"][0]["message"])
 ```
+
+Refer to the example client code [here](example_client.ipynb) for a more detailed example.
 
 #### Using the model directly
 Please refer to the model card in HuggingFace to see how to use the model directly, including the prompt format, etc.
