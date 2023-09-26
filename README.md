@@ -24,7 +24,7 @@ Kick-start the FastAPI server. You can indicate the model via environment variab
 
 ```shell
 EXPORT INVOKER_MODEL_NAME_OR_PATH=jeffrey-fong/invoker-13b
-uvicorn server_api:app
+uvicorn server_fastapi:app
 ```
 
 There are plans to set up accelerated servers based on [ExLlama](https://github.com/turboderp/exllama) and/or [ExLlamaV2](https://github.com/turboderp/exllamav2) that can work with GPTQ-based models. Stay tuned for more updates!
