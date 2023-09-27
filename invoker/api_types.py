@@ -31,7 +31,7 @@ class ChatInput(BaseModel):
     model: str
     messages: List[Message]
     functions: Optional[List[Function]] = None
-    temperature: float = 0.7
+    temperature: float = 0.5
     top_p: float = 1.0
 
 
