@@ -5,6 +5,8 @@ import re
 from typing import Any, Dict, List, Optional
 
 import torch
+from exllamav2 import ExLlamaV2, ExLlamaV2Cache, ExLlamaV2Config, ExLlamaV2Tokenizer
+from exllamav2.generator import ExLlamaV2BaseGenerator, ExLlamaV2Sampler
 from transformers import LlamaForCausalLM, LlamaTokenizer
 
 from invoker.api_types import Function, Message
@@ -15,9 +17,22 @@ class InvokerPipeline:
     _pipeline = None
 
     def __init__(self, model_path: str):
-        self._tokenizer = LlamaTokenizer.from_pretrained(model_path, use_fast=False)
         # Load model
-        self._model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16, device_map="auto")
+        if "GPTQ" in model_path:
+            config = ExLlamaV2Config()
+            config.model_dir = model_path
+            config.prepare()
+
+            model = ExLlamaV2(config)
+            model.load()
+            self._tokenizer = ExLlamaV2Tokenizer(config)
+
+            cache = ExLlamaV2Cache(model)
+            self.generator = ExLlamaV2BaseGenerator(model, cache, self._tokenizer)
+            self.generator.warmup()
+        else:
+            self._tokenizer = LlamaTokenizer.from_pretrained(model_path, use_fast=False)
+            self._model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16, device_map="auto")
 
     def format_message(self, messages: List[Message], functions: Optional[List[Function]]):
         prompt = "Available Functions:"
@@ -68,6 +83,18 @@ class InvokerPipeline:
             temperature=temperature,
         )
         raw_output = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        output = raw_output[len(input_text) :]
+        choices = self._postprocess(text=output)
+        return choices
+
+    def generate_exllama(self, input_text: str, params: Dict[str, Any]) -> str:
+        temperature, top_p = params.get("temperature"), params.get("top_p")
+        settings = ExLlamaV2Sampler.Settings()
+        settings.token_repetition_penalty = 1.0
+        settings.temperature = temperature
+        settings.top_p = top_p
+        raw_output = self.generator.generate_simple(input_text, settings, num_tokens=512)
+        breakpoint()
         output = raw_output[len(input_text) :]
         choices = self._postprocess(text=output)
         return choices
