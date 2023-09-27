@@ -10,26 +10,28 @@ from exllamav2.generator import ExLlamaV2BaseGenerator, ExLlamaV2Sampler
 from transformers import LlamaForCausalLM, LlamaTokenizer
 
 from invoker.api_types import Function, Message
+from invoker.utils.enum_tags import ModelType
 
 
 class InvokerPipeline:
     # Singleton instance
     _pipeline = None
 
-    def __init__(self, model_path: str):
+    def __init__(self, model_path: str, model_type: ModelType):
         # Load model
-        if "GPTQ" in model_path:
+        self._model_type = model_type
+        if model_type == ModelType.exllamav2:
             config = ExLlamaV2Config()
             config.model_dir = model_path
             config.prepare()
-
             model = ExLlamaV2(config)
             model.load()
             self._tokenizer = ExLlamaV2Tokenizer(config)
-
             cache = ExLlamaV2Cache(model)
-            self.generator = ExLlamaV2BaseGenerator(model, cache, self._tokenizer)
-            self.generator.warmup()
+            self._generator = ExLlamaV2BaseGenerator(model, cache, self._tokenizer)
+            self._generator.warmup()
+            self._settings = ExLlamaV2Sampler.Settings()
+            self._settings.token_repetition_penalty = 1.0
         else:
             self._tokenizer = LlamaTokenizer.from_pretrained(model_path, use_fast=False)
             self._model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16, device_map="auto")
@@ -70,31 +72,21 @@ class InvokerPipeline:
         return prompt
 
     def generate(self, input_text: str, params: Dict[str, Any]) -> str:
-        # Tokenize the input
-        input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
-        # Run the model to infer an output
         temperature, top_p = params.get("temperature"), params.get("top_p")
-        do_sample = True if temperature > 0.0 else False
-        output_ids = self._model.generate(
-            input_ids=input_ids,
-            max_new_tokens=512,
-            do_sample=do_sample,
-            top_p=top_p,
-            temperature=temperature,
-        )
-        raw_output = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
-        output = raw_output[len(input_text) :]
-        choices = self._postprocess(text=output)
-        return choices
-
-    def generate_exllama(self, input_text: str, params: Dict[str, Any]) -> str:
-        temperature, top_p = params.get("temperature"), params.get("top_p")
-        settings = ExLlamaV2Sampler.Settings()
-        settings.token_repetition_penalty = 1.0
-        settings.temperature = temperature
-        settings.top_p = top_p
-        raw_output = self.generator.generate_simple(input_text, settings, num_tokens=512)
-        breakpoint()
+        if self._model_type == ModelType.exllamav2:
+            self._settings.temperature, self._settings.top_p = temperature, top_p
+            raw_output = self._generator.generate_simple(input_text, self._settings, num_tokens=512)
+        else:
+            input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
+            do_sample = True if temperature > 0.0 else False
+            output_ids = self._model.generate(
+                input_ids=input_ids,
+                max_new_tokens=512,
+                do_sample=do_sample,
+                top_p=top_p,
+                temperature=temperature,
+            )
+            raw_output = self._tokenizer.decode(output_ids[0], skip_special_tokens=True)
         output = raw_output[len(input_text) :]
         choices = self._postprocess(text=output)
         return choices
@@ -127,9 +119,9 @@ class InvokerPipeline:
         return choices
 
     @classmethod
-    async def maybe_init(cls, model_path: str) -> InvokerPipeline:
+    async def maybe_init(cls, model_path: str, model_type: ModelType) -> InvokerPipeline:
         if cls._pipeline is None:
-            cls._pipeline = InvokerPipeline(model_path=model_path)
+            cls._pipeline = InvokerPipeline(model_path=model_path, model_type=model_type)
         if cls._pipeline is not None:
             return cls._pipeline
         else:
