@@ -10,6 +10,11 @@
 
 Invoker is a suite of large language models based on Llama-2 and is finetuned to plan between calling functions and providing responses directly. Currently, we have released the 13B version and there are plans for the 7B and 34B versions to be trained and released in the future.
 
+## News
+
+- [2023/09] We released **Invoker-13B-GPTQ**, which is a 4-bit quantized GPTQ implementation of Invoker-13B. Download [weights](https://huggingface.co/jeffrey-fong/invoker-13b-GPTQ). We also added ExllamaV2 integration!
+- [2023/09] We released **Invoker-13B**, a model trained on function-calling and multi-turn conversation datasets. Download [weights](https://huggingface.co/jeffrey-fong/invoker-13b)
+
 ## Installation & Usage
 
 The usage of Invoker follows exactly like OpenAI's function calling. Simply install the required dependencies:
@@ -20,20 +25,29 @@ pip install -r requirements.txt
 
 #### Launching the Server
 
-Kick-start the FastAPI server. You can indicate the model via environment variables. The list of models are indicated [here](#download).
+Kick-start the FastAPI server. You can indicate the model details via environment variables. The Invoker server currently supports 2 different ways to load the model. If you would like to load the full fp16 model using HuggingFace transformers, run the following commands:
 
 ```shell
+EXPORT INVOKER_MODEL_TYPE=hf
 EXPORT INVOKER_MODEL_NAME_OR_PATH=jeffrey-fong/invoker-13b
 uvicorn server_fastapi:app
 ```
 
-There are plans to set up accelerated servers based on [ExLlama](https://github.com/turboderp/exllama) and/or [ExLlamaV2](https://github.com/turboderp/exllamav2) that can work with GPTQ-based models. Stay tuned for more updates!
+If you would like to load 4-bit quantized Invoker GPTQ models, using [ExLlamaV2](https://github.com/turboderp/exllamav2), run the following commands:
+
+```shell
+EXPORT INVOKER_MODEL_TYPE=exllamav2
+EXPORT INVOKER_MODEL_NAME_OR_PATH=jeffrey-fong/invoker-13b-GPTQ
+uvicorn server_fastapi:app
+```
+
+The full list of models are indicated [here](#download).
 
 #### Inference
 
 Inference can then be performed exactly like OpenAI function-calling. Provide the chat and the functions in the `messages` and `functions` arguments respectively. Invoker also supports the following generation hyperparameters:
 
-- `temperature: float = 0.7` Accepts values between 0.0 and 1.0. Defaults to 0.7 if the temperature is not passed in.
+- `temperature: float = 0.5` Accepts values between 0.0 and 1.0. Defaults to 0.5 if the temperature is not passed in.
 - `top_p: float = 1.0` Accepts values between 0.0 and 1.0. Defaults to 1.0 if the top_p is not passed in.
 
 ```python
@@ -108,7 +122,7 @@ Please refer to the model card in HuggingFace to see how to use the model direct
 | Model  |  Link | Version |
 | ------------- | ------------- |------------- |
 | Invoker-13B  | [Huggingface Repo](https://huggingface.co/jeffrey-fong/invoker-13b) |v1.0|
-| Invoker-13B-GPTQ  | Coming Soon |v1.0|
+| Invoker-13B-GPTQ  | [Huggingface Repo](https://huggingface.co/jeffrey-fong/invoker-13b-GPTQ) |v1.0|
 | Invoker-7B  | Coming Soon |v1.0|
 | Invoker-34B  | Coming Soon |v1.0|
 
@@ -153,9 +167,9 @@ All the datasets used are under Apache-2.0 License. Therefore, this dataset will
 
 ## To-Dos
 
+- [X] Quantize 13B model
+- [X] Work on GPTQ-based servers ([ExLlama](https://github.com/turboderp/exllama) and/or [ExLlamaV2](https://github.com/turboderp/exllamav2))
 - [ ] Work on validating function names, descriptions, etc. Just like OpenAI's function calling
-- [ ] Quantize 13B model
-- [ ] Work on GPTQ-based servers ([ExLlama](https://github.com/turboderp/exllama) and/or [ExLlamaV2](https://github.com/turboderp/exllamav2))
 - [ ] Converting Invoker to other formats like:
   - [ ] GGUF
   - [ ] AWQ
