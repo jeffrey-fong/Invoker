@@ -28,16 +28,16 @@ pip install -r requirements.txt
 Kick-start the FastAPI server. You can indicate the model details via environment variables. The Invoker server currently supports 2 different ways to load the model. If you would like to load the full fp16 model using HuggingFace transformers, run the following commands:
 
 ```shell
-EXPORT INVOKER_MODEL_TYPE=hf
-EXPORT INVOKER_MODEL_NAME_OR_PATH=jeffrey-fong/invoker-13b
+export INVOKER_MODEL_TYPE=hf
+export INVOKER_MODEL_NAME_OR_PATH=jeffrey-fong/invoker-13b
 uvicorn server_fastapi:app
 ```
 
-If you would like to load 4-bit quantized Invoker GPTQ models, using [ExLlamaV2](https://github.com/turboderp/exllamav2), run the following commands:
+If you would like to load 4-bit quantized Invoker GPTQ models using [ExLlamaV2](https://github.com/turboderp/exllamav2), clone the [model repository](https://huggingface.co/jeffrey-fong/invoker-13b-GPTQ) into your local machine. Then, run the following commands:
 
 ```shell
-EXPORT INVOKER_MODEL_TYPE=exllamav2
-EXPORT INVOKER_MODEL_NAME_OR_PATH=jeffrey-fong/invoker-13b-GPTQ
+export INVOKER_MODEL_TYPE=exllamav2
+export INVOKER_MODEL_NAME_OR_PATH=path_to_downloaded_invoker-13b-GPTQ-model_dir
 uvicorn server_fastapi:app
 ```
 
