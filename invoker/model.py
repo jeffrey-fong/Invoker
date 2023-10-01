@@ -2,11 +2,15 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 import torch
 from exllamav2 import ExLlamaV2, ExLlamaV2Cache, ExLlamaV2Config, ExLlamaV2Tokenizer
-from exllamav2.generator import ExLlamaV2BaseGenerator, ExLlamaV2Sampler
+from exllamav2.generator import (
+    ExLlamaV2BaseGenerator,
+    ExLlamaV2Sampler,
+    ExLlamaV2StreamingGenerator,
+)
 from transformers import LlamaForCausalLM, LlamaTokenizer
 
 from invoker.api_types import Function, Message
@@ -30,11 +34,14 @@ class InvokerPipeline:
             cache = ExLlamaV2Cache(model)
             self._generator = ExLlamaV2BaseGenerator(model, cache, self._tokenizer)
             self._generator.warmup()
+            self._stream_generator = ExLlamaV2StreamingGenerator(model, cache, self._tokenizer)
+            self._stream_generator.warmup()
             self._settings = ExLlamaV2Sampler.Settings()
             self._settings.token_repetition_penalty = 1.0
         else:
             self._tokenizer = LlamaTokenizer.from_pretrained(model_path, use_fast=False)
             self._model = LlamaForCausalLM.from_pretrained(model_path, torch_dtype=torch.float16, device_map="auto")
+        self._max_new_tokens = 512
 
     def format_message(self, messages: List[Message], functions: Optional[List[Function]]):
         prompt = "Available Functions:"
@@ -75,13 +82,13 @@ class InvokerPipeline:
         temperature, top_p = params.get("temperature"), params.get("top_p")
         if self._model_type == ModelType.exllamav2:
             self._settings.temperature, self._settings.top_p = temperature, top_p
-            raw_output = self._generator.generate_simple(input_text, self._settings, num_tokens=512)
+            raw_output = self._generator.generate_simple(input_text, self._settings, num_tokens=self._max_new_tokens)
         else:
             input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
             do_sample = True if temperature > 0.0 else False
             output_ids = self._model.generate(
                 input_ids=input_ids,
-                max_new_tokens=512,
+                max_new_tokens=self._max_new_tokens,
                 do_sample=do_sample,
                 top_p=top_p,
                 temperature=temperature,
@@ -90,6 +97,26 @@ class InvokerPipeline:
         output = raw_output[len(input_text) :]
         choices = self._postprocess(text=output)
         return choices
+
+    def generate_stream(self, input_text: str, params: Dict[str, Any]) -> Generator[str]:
+        temperature, top_p = params.get("temperature"), params.get("top_p")
+        self._curr_response, self._response_type, self._finish_reason = "", None, None
+        if self._model_type == ModelType.exllamav2:
+            self._settings.temperature, self._settings.top_p = temperature, top_p
+            input_ids = self._tokenizer.encode(input_text)
+            self._stream_generator.begin_stream(input_ids, self._settings)
+            generated_tokens = 0
+            while True:
+                chunk, eos, _ = self._stream_generator.stream()
+                generated_tokens += 1
+                if eos or generated_tokens == self._max_new_tokens or self._finish_reason == "complete":
+                    break
+                chunk = self._postprocess_stream_chunk(text=chunk)
+                if chunk:
+                    yield chunk
+            del self._curr_response
+            del self._response_type
+            del self._finish_reason
 
     def _postprocess(self, text):
         output_json = json.loads(re.search(r"```(.*?)```?", text, re.DOTALL).group(1))
@@ -117,6 +144,46 @@ class InvokerPipeline:
                 }
             ]
         return choices
+
+    def _postprocess_stream_chunk(self, text):
+        self._curr_response += text
+        if not self._response_type:
+            # Check for "content"
+            if '"content": null, "function_call": {' in self._curr_response:
+                self._response_type = "function"
+            elif '"content": "' in self._curr_response:
+                self._response_type = "content"
+            return None
+        elif self._response_type == "function":
+            if self._curr_response.endswith('", "arguments": "'):
+                name_match = re.search(r'"function_call":\s*\{"name":\s*"([^"]+)"', self._curr_response)
+                return {
+                    "delta": {"role": "assistant", "function_call": {"name": name_match.group(1)}},
+                    "finish_reason": None,
+                }
+            elif '", "arguments": "' in self._curr_response:
+                if self._finish_reason == "function_call":
+                    output = {"delta": {}, "finish_reason": self._finish_reason}
+                    self._finish_reason = "complete"
+                    return output
+                if self._curr_response.endswith('}"'):
+                    self._finish_reason = "function_call"
+                    text = text.rstrip('"')
+                return {"delta": {"role": "assistant", "function_call": {"arguments": text}}, "finish_reason": None}
+        elif self._response_type == "content":
+            match = re.search(r'"content":\s*"([^"]+)"', self._curr_response)
+            if match:
+                self._finish_reason = "stop"
+                if text[0] in [".", "?", "!"]:
+                    return {"delta": {"role": "assistant", "content": text[0]}, "finish_reason": None}
+            if not self._finish_reason:
+                return {"delta": {"role": "assistant", "content": text}, "finish_reason": self._finish_reason}
+            elif self._finish_reason == "stop":
+                output = {"delta": {}, "finish_reason": self._finish_reason}
+                self._finish_reason = "complete"
+                return output
+        else:
+            return None
 
     @classmethod
     async def maybe_init(cls, model_path: str, model_type: ModelType) -> InvokerPipeline:

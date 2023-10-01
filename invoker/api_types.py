@@ -4,8 +4,8 @@ from pydantic import BaseModel
 
 
 class FunctionCall(BaseModel):
-    name: str
-    arguments: str
+    name: Optional[str] = None
+    arguments: Optional[str] = None
 
 
 class Parameters(BaseModel):
@@ -15,8 +15,8 @@ class Parameters(BaseModel):
 
 
 class Message(BaseModel):
-    role: str
-    content: Optional[str]
+    role: Optional[str] = None
+    content: Optional[str] = None
     name: Optional[str] = None
     function_call: Optional[FunctionCall] = None
 
@@ -33,6 +33,7 @@ class ChatInput(BaseModel):
     functions: Optional[List[Function]] = None
     temperature: float = 0.5
     top_p: float = 1.0
+    stream: bool = False
 
 
 class Choice(BaseModel):
@@ -40,8 +41,20 @@ class Choice(BaseModel):
     finish_reason: str = "stop"
 
 
+class StreamChoice(BaseModel):
+    delta: Message
+    finish_reason: Optional[str]
+
+
 class ChatOutput(BaseModel):
     id: str
     object: str = "chat.completion"
     created: int
     choices: List[Choice]
+
+
+class ChatStreamOutput(BaseModel):
+    id: str
+    object: str = "chat.completion.chunk"
+    created: int
+    choices: List[StreamChoice]
