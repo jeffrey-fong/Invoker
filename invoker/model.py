@@ -119,15 +119,21 @@ class InvokerPipeline:
                 chunk = self._postprocess_stream_chunk(text=chunk)
                 if chunk:
                     yield chunk
-            del self._curr_response
-            del self._response_type
-            del self._finish_reason
         else:
             input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
-            # logits_processor = self._get_logits_processor(temperature=temperature, top_p=top_p)
-            breakpoint()
+            logits_processor = self._get_logits_processor(temperature=temperature, top_p=top_p)
+            hf_generator = self._hf_generate_stream(
+                input_ids=input_ids, params=params, logits_processor=logits_processor
+            )
+            for chunk in hf_generator:
+                chunk = self._postprocess_stream_chunk(text=chunk)
+                if chunk:
+                    yield chunk
+        del self._curr_response
+        del self._response_type
+        del self._finish_reason
 
-    def _get_logits_processor(self, temperature, top_p):
+    def _get_logits_processor(self, temperature, top_p) -> LogitsProcessorList:
         processors = LogitsProcessorList()
         if temperature > 0.0 and temperature != 1.0:
             processors.append(TemperatureLogitsWarper(temperature=temperature))
@@ -135,9 +141,40 @@ class InvokerPipeline:
             processors.append(TopPLogitsWarper(top_p=top_p))
         return processors
 
-    def _hf_generate_stream(self, input_ids, params):
+    def _hf_generate_stream(self, input_ids, params, logits_processor) -> Generator[str]:
+        past_key_values, output_ids, sampled_token_tensor = None, input_ids.clone().detach(), None
         for i in range(self._max_new_tokens):
-            pass
+            out = self._model(
+                input_ids if not past_key_values else sampled_token_tensor,
+                use_cache=True,
+                past_key_values=past_key_values,
+            )
+            logits, past_key_values = out.logits, out.past_key_values
+            processed_logits = logits_processor(None, logits[:, -1, :])[0] if logits_processor else logits[0, -1, :]
+            if params.get("temperature") == 0.0:
+                _, indices = torch.topk(processed_logits, 2)
+                sampled_tokens = [int(index) for index in indices.tolist()]
+            else:
+                probs = torch.softmax(processed_logits, dim=-1)
+                indices = torch.multinomial(probs, num_samples=2)
+                sampled_tokens = [int(token) for token in indices.tolist()]
+            sampled_token = sampled_tokens[0]
+            sampled_token_tensor = torch.as_tensor([[sampled_token]], device="cuda")
+            current_output_text = self._tokenizer.decode(
+                output_ids[0].tolist(), skip_special_tokens=True, clean_up_tokenization_spaces=False
+            )
+            output_ids = torch.cat((output_ids, sampled_token_tensor), 1)
+            next_output_text = self._tokenizer.decode(
+                output_ids[0].tolist(),
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
+            output = next_output_text[len(current_output_text) :]
+            if output == "```":
+                breakpoint()
+            if sampled_token == self._tokenizer.eos_token_id:
+                break
+            yield output
 
     def _postprocess(self, text):
         output_json = json.loads(re.search(r"```(.*?)```?", text, re.DOTALL).group(1))
