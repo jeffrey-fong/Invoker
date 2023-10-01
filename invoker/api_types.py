@@ -4,8 +4,8 @@ from pydantic import BaseModel
 
 
 class FunctionCall(BaseModel):
-    name: str
-    arguments: str
+    name: Optional[str] = None
+    arguments: Optional[str] = None
 
 
 class Parameters(BaseModel):
@@ -15,8 +15,8 @@ class Parameters(BaseModel):
 
 
 class Message(BaseModel):
-    role: str
-    content: Optional[str]
+    role: Optional[str] = None
+    content: Optional[str] = None
     name: Optional[str] = None
     function_call: Optional[FunctionCall] = None
 

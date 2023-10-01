@@ -45,7 +45,7 @@ async def chat(req: ChatInput):
         def get_streaming_response():
             i = 0
             for chunk in response_generator:
-                choices = [StreamChoice(delta={"role": "assistant", "content": f"test{i}"}, finish_reason=None)]
+                choices = [StreamChoice(**chunk)]
                 i += 1
                 yield "data: " + ChatStreamOutput(id=id, created=created, choices=choices).model_dump_json(
                     exclude_unset=True
