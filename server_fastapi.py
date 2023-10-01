@@ -2,10 +2,11 @@ import time
 import uuid
 
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from invoker.api_types import ChatInput, ChatOutput
+from invoker.api_types import ChatInput
 from invoker.model import InvokerPipeline
 from invoker.utils.enum_tags import ModelType
 
@@ -23,16 +24,29 @@ app = FastAPI(title="Invoker")
 settings = Settings()
 
 
-@app.post("/chat/completions", response_model=ChatOutput)
+@app.post("/chat/completions")
 async def chat(req: ChatInput):
     id = str(uuid.uuid4())
     invoker_pipeline: InvokerPipeline = await get_pipeline(
         model_path=settings.invoker_model_name_or_path, model_type=settings.invoker_model_type
     )
     prompt = invoker_pipeline.format_message(messages=req.messages, functions=req.functions)
-    choices = invoker_pipeline.generate(input_text=prompt, params={"temperature": req.temperature, "top_p": req.top_p})
     created = int(time.time())
-    return {"id": id, "created": created, "choices": choices}
+    if not req.stream:
+        choices = invoker_pipeline.generate(
+            input_text=prompt, params={"temperature": req.temperature, "top_p": req.top_p}
+        )
+        return {"id": id, "created": created, "choices": choices}
+    else:
+        response_generator = invoker_pipeline.generate_stream(
+            input_text=prompt, params={"temperature": req.temperature, "top_p": req.top_p}
+        )
+
+        def get_streaming_response():
+            for chunk in response_generator:
+                yield chunk
+
+        return StreamingResponse(content=get_streaming_response(), media_type="text/event-stream")
 
 
 @app.on_event("startup")
