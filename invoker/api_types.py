@@ -43,7 +43,7 @@ class Choice(BaseModel):
 
 class StreamChoice(BaseModel):
     delta: Message
-    finish_reason: str = "stop"
+    finish_reason: Optional[str]
 
 
 class ChatOutput(BaseModel):
@@ -55,6 +55,6 @@ class ChatOutput(BaseModel):
 
 class ChatStreamOutput(BaseModel):
     id: str
-    object: str = "chat.completion"
+    object: str = "chat.completion.chunk"
     created: int
     choices: List[StreamChoice]

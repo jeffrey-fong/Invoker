@@ -6,7 +6,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from invoker.api_types import ChatInput
+from invoker.api_types import ChatInput, ChatOutput, ChatStreamOutput, StreamChoice
 from invoker.model import InvokerPipeline
 from invoker.utils.enum_tags import ModelType
 
@@ -36,15 +36,20 @@ async def chat(req: ChatInput):
         choices = invoker_pipeline.generate(
             input_text=prompt, params={"temperature": req.temperature, "top_p": req.top_p}
         )
-        return {"id": id, "created": created, "choices": choices}
+        return ChatOutput(id=id, created=created, choices=choices)
     else:
         response_generator = invoker_pipeline.generate_stream(
             input_text=prompt, params={"temperature": req.temperature, "top_p": req.top_p}
         )
 
         def get_streaming_response():
+            i = 0
             for chunk in response_generator:
-                yield chunk
+                choices = [StreamChoice(delta={"role": "assistant", "content": f"test{i}"}, finish_reason=None)]
+                i += 1
+                yield "data: " + ChatStreamOutput(id=id, created=created, choices=choices).model_dump_json(
+                    exclude_unset=True
+                ) + "\n\n"
 
         return StreamingResponse(content=get_streaming_response(), media_type="text/event-stream")
 
