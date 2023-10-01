@@ -12,6 +12,11 @@ from exllamav2.generator import (
     ExLlamaV2StreamingGenerator,
 )
 from transformers import LlamaForCausalLM, LlamaTokenizer
+from transformers.generation.logits_process import (
+    LogitsProcessorList,
+    TemperatureLogitsWarper,
+    TopPLogitsWarper,
+)
 
 from invoker.api_types import Function, Message
 from invoker.utils.enum_tags import ModelType
@@ -117,6 +122,22 @@ class InvokerPipeline:
             del self._curr_response
             del self._response_type
             del self._finish_reason
+        else:
+            input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
+            # logits_processor = self._get_logits_processor(temperature=temperature, top_p=top_p)
+            breakpoint()
+
+    def _get_logits_processor(self, temperature, top_p):
+        processors = LogitsProcessorList()
+        if temperature > 0.0 and temperature != 1.0:
+            processors.append(TemperatureLogitsWarper(temperature=temperature))
+        if top_p is not None and top_p < 1.0:
+            processors.append(TopPLogitsWarper(top_p=top_p))
+        return processors
+
+    def _hf_generate_stream(self, input_ids, params):
+        for i in range(self._max_new_tokens):
+            pass
 
     def _postprocess(self, text):
         output_json = json.loads(re.search(r"```(.*?)```?", text, re.DOTALL).group(1))
