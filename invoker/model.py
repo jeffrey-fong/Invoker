@@ -126,6 +126,8 @@ class InvokerPipeline:
                 input_ids=input_ids, params=params, logits_processor=logits_processor
             )
             for chunk in hf_generator:
+                if self._finish_reason == "complete":
+                    break
                 chunk = self._postprocess_stream_chunk(text=chunk)
                 if chunk:
                     yield chunk
@@ -170,8 +172,6 @@ class InvokerPipeline:
                 clean_up_tokenization_spaces=False,
             )
             output = next_output_text[len(current_output_text) :]
-            if output == "```":
-                breakpoint()
             if sampled_token == self._tokenizer.eos_token_id:
                 break
             yield output
