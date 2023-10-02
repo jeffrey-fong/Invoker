@@ -119,6 +119,8 @@ class InvokerPipeline:
                 chunk = self._postprocess_stream_chunk(text=chunk)
                 if chunk:
                     yield chunk
+            if generated_tokens == self._max_new_tokens:
+                yield {"delta": {}, "finish_reason": "length"}
         else:
             input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
             logits_processor = self._get_logits_processor(temperature=temperature, top_p=top_p)
