@@ -175,6 +175,8 @@ class InvokerPipeline:
             if sampled_token == self._tokenizer.eos_token_id:
                 break
             yield output
+        else:
+            yield "[|LENGTH|]"
 
     def _postprocess(self, text):
         output_json = json.loads(re.search(r"```(.*?)```?", text, re.DOTALL).group(1))
@@ -205,6 +207,9 @@ class InvokerPipeline:
 
     def _postprocess_stream_chunk(self, text):
         self._curr_response += text
+        if text == "[|LENGTH|]":
+            self._finish_reason = "complete"
+            return {"delta": {}, "finish_reason": "length"}
         if not self._response_type:
             # Check for "content"
             if '"content": null, "function_call": {' in self._curr_response:
