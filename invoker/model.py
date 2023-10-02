@@ -119,6 +119,8 @@ class InvokerPipeline:
                 chunk = self._postprocess_stream_chunk(text=chunk)
                 if chunk:
                     yield chunk
+            if generated_tokens == self._max_new_tokens:
+                yield {"delta": {}, "finish_reason": "length"}
         else:
             input_ids = self._tokenizer(input_text, return_tensors="pt").input_ids.cuda()
             logits_processor = self._get_logits_processor(temperature=temperature, top_p=top_p)
@@ -175,6 +177,8 @@ class InvokerPipeline:
             if sampled_token == self._tokenizer.eos_token_id:
                 break
             yield output
+        else:
+            yield "[|LENGTH|]"
 
     def _postprocess(self, text):
         output_json = json.loads(re.search(r"```(.*?)```?", text, re.DOTALL).group(1))
@@ -205,6 +209,9 @@ class InvokerPipeline:
 
     def _postprocess_stream_chunk(self, text):
         self._curr_response += text
+        if text == "[|LENGTH|]":
+            self._finish_reason = "complete"
+            return {"delta": {}, "finish_reason": "length"}
         if not self._response_type:
             # Check for "content"
             if '"content": null, "function_call": {' in self._curr_response:
